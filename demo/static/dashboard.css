@@ -1,0 +1,231 @@
+:root {
+  --bg: #0f1419;
+  --card: #1a2332;
+  --text: #e7ecf3;
+  --muted: #8b9cb3;
+  --accent: #3d8bfd;
+  --border: #2a3a52;
+}
+
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  font-family: system-ui, Segoe UI, Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.5;
+}
+.hdr {
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid var(--border);
+}
+.hdr h1 {
+  margin: 0 0 0.25rem;
+  font-size: 1.35rem;
+}
+.sub {
+  margin: 0 0 0.75rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+.btn {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  padding: 0.4rem 0.9rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+}
+.btn:hover {
+  filter: brightness(1.08);
+}
+main {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 1rem 1.25rem 2rem;
+}
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1rem;
+}
+.card h2 {
+  margin: 0 0 0.75rem;
+  font-size: 1.05rem;
+}
+.run-card h2 {
+  margin-top: 0;
+}
+.hint {
+  font-size: 0.8rem;
+  color: var(--muted);
+  margin: 0 0 0.75rem;
+  word-break: break-all;
+}
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 0.65rem;
+}
+.tile {
+  background: #131c28;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.65rem 0.75rem;
+}
+.tile .label {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+.tile .val {
+  font-size: 1.35rem;
+  font-weight: 700;
+  margin-top: 0.15rem;
+}
+.warn {
+  color: #f5a623;
+  font-size: 0.9rem;
+}
+.proof {
+  margin: 0;
+  padding-left: 1.2rem;
+  color: var(--muted);
+}
+.proof li {
+  margin-bottom: 0.4rem;
+}
+.proof-dl {
+  margin: 1rem 0 0;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.35rem 1rem;
+  font-size: 0.9rem;
+}
+.proof-dl dt {
+  color: var(--muted);
+}
+.proof-dl dd {
+  margin: 0;
+}
+.code {
+  background: #131c28;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.75rem;
+  overflow: auto;
+  font-size: 0.82rem;
+  color: #c8d7e8;
+}
+code {
+  font-size: 0.88em;
+  background: #131c28;
+  padding: 0.1rem 0.35rem;
+  border-radius: 4px;
+}
+
+.run-card .run-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+  margin-bottom: 0.65rem;
+}
+.run-label {
+  min-width: 7rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+.input-select,
+.input-text {
+  flex: 1;
+  min-width: 200px;
+  max-width: 100%;
+  padding: 0.45rem 0.6rem;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: #131c28;
+  color: var(--text);
+  font-size: 0.9rem;
+}
+.run-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+  flex-wrap: wrap;
+}
+.btn-primary {
+  background: #2a9d7a;
+}
+.btn-primary:hover {
+  filter: brightness(1.08);
+}
+.btn-primary:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.status-badge {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 0.25rem 0.55rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+}
+.status-idle {
+  color: var(--muted);
+}
+.status-running {
+  color: #f5a623;
+  border-color: #f5a62355;
+}
+.status-done {
+  color: #6bcf7f;
+  border-color: #6bcf7f55;
+}
+.status-failed {
+  color: #ff6b6b;
+  border-color: #ff6b6b55;
+}
+.err {
+  color: #ff6b6b;
+  font-size: 0.88rem;
+  margin: 0.5rem 0 0;
+}
+.hidden {
+  display: none !important;
+}
+.run-result {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+.run-result-title {
+  margin: 0.75rem 0 0.5rem;
+  font-size: 0.95rem;
+  color: var(--muted);
+  font-weight: 600;
+}
+.proof-grid {
+  margin: 0;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.35rem 1.25rem;
+  font-size: 0.9rem;
+  align-items: baseline;
+}
+.proof-grid dt {
+  color: var(--muted);
+}
+.proof-grid dd {
+  margin: 0;
+  font-weight: 600;
+}

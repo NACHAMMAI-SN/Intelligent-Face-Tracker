@@ -1,0 +1,46 @@
+# Python cache and virtual environments
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.venv/
+venv/
+env/
+
+# IDE and OS files
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Runtime artifacts
+*.log
+logs/*.log
+
+# Data and database
+data/*.db
+data/*.sqlite
+data/*.sqlite3
+data/input/
+data/faces/entry/
+data/faces/exit/
+
+# Demo uploads / temp helpers
+demo/uploads/
+check_db.py
+_out_readme.txt
+
+# Model binaries and large artifacts
+models/*.pt
+models/*.onnx
+models/*.engine
+models/*.bin
+models/*.weights
+models/**/*.pt
+models/**/*.onnx
+
+# Build and packaging
+build/
+dist/
+*.egg-info/
+!models/yolov8n-face.pt

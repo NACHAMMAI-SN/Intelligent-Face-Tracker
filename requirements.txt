@@ -1,0 +1,9 @@
+# Python 3.11+ recommended. Install: pip install -r requirements.txt
+# Stack: YOLO detection, InsightFace embeddings, ONNX inference (see src/).
+numpy
+opencv-python
+ultralytics
+insightface
+onnxruntime
+flask
+psutil

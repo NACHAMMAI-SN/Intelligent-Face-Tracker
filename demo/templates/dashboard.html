@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Face Tracker — Demo Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='dashboard.css') }}" />
+  </head>
+  <body>
+    <header class="hdr">
+      <h1>Intelligent Face Tracker</h1>
+      <p class="sub">
+        <strong>Optional:</strong> start a run from here (temporary runtime config; root
+        <code>config.json</code> is not overwritten). Read-only sections use <code>logs/app.log</code> and
+        SQLite paths from <code>config.json</code>.
+      </p>
+      <button type="button" id="refresh" class="btn">Refresh</button>
+    </header>
+
+    <main>
+      <section class="card run-card">
+        <h2>Run from browser</h2>
+        <p class="hint" id="config-summary"></p>
+        <div class="run-row">
+          <label class="run-label">Input mode</label>
+          <select id="input-mode" class="input-select">
+            <option value="video">Local video (upload)</option>
+            <option value="rtsp">RTSP stream</option>
+          </select>
+        </div>
+        <div class="run-row" id="row-video">
+          <label class="run-label" for="video-file">Video file</label>
+          <input type="file" id="video-file" accept="video/*,.mp4,.avi,.mov,.mkv" />
+        </div>
+        <div class="run-row hidden" id="row-rtsp">
+          <label class="run-label" for="rtsp-url">RTSP URL</label>
+          <input type="text" id="rtsp-url" class="input-text" placeholder="rtsp://user:pass@host:554/stream" autocomplete="off" />
+        </div>
+        <div class="run-actions">
+          <button type="button" id="start-run" class="btn btn-primary">Start processing</button>
+          <span id="run-status" class="status-badge status-idle">idle</span>
+        </div>
+        <p class="err" id="run-error" hidden></p>
+        <p class="hint" id="run-source"></p>
+
+        <div id="run-result" class="run-result hidden">
+          <h3 class="run-result-title">Last run — final stats</h3>
+          <div class="grid" id="run-stats-grid"></div>
+          <h3 class="run-result-title">Proof (SQLite, cumulative)</h3>
+          <dl class="proof-grid" id="run-proof-dl"></dl>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Run metrics (from last <code>Pipeline stopped</code> in app.log)</h2>
+        <p class="hint" id="paths"></p>
+        <div class="grid" id="stats-grid"></div>
+        <p class="warn" id="stats-missing" hidden>
+          No <strong>Pipeline stopped</strong> line found in app.log — run the pipeline from here or
+          <code>python main.py</code> first.
+        </p>
+      </section>
+
+      <section class="card">
+        <h2>Demo proof</h2>
+        <ul id="proof-list" class="proof"></ul>
+        <dl class="proof-dl" id="proof-facts"></dl>
+      </section>
+
+      <section class="card">
+        <h2>Events summary (SQLite)</h2>
+        <pre id="events-pre" class="code"></pre>
+      </section>
+    </main>
+
+    <script src="{{ url_for('static', filename='dashboard.js') }}"></script>
+  </body>
+</html>

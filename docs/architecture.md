@@ -93,7 +93,7 @@ Responsibilities:
 
 Known identities are seeded from SQLite at startup.
 
-### 7. AutoRegistrar
+### 7. AutoRegistration
 Handles the unknown-person path.
 
 Responsibilities:

@@ -354,4 +354,3 @@ This architecture is designed around a simple but strong idea:
 
 **use tracking as the backbone, use embeddings for identity, use reuse logic to prevent duplicates, and use structured persistence to prove the results.**
 
-That makes the project practical for a hackathon demo while still showing clear AI workflow, modular design, and measurable outcomes.

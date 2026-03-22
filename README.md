@@ -15,6 +15,8 @@ The project also includes a lightweight **Flask demo dashboard** for viewing res
 
 YouTube Demo Link: [Watch the project demo](https://youtu.be/VDnZWiXQpRQ)
 
+---
+
 ## Problem statement coverage
 
 This project addresses the required real-time intelligent video analytics workflow:

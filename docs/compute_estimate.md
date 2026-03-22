@@ -23,6 +23,6 @@ Hackathon demos are assumed to run on a **single machine** with **CPU-only** inf
 
 The current design is a **single-process** pipeline: one video source, one detector, one tracker graph, one gallery-backed recognizer, and one DB. Scaling to many cameras or very high frame rates would require architectural changes (e.g., batching, separate inference services, or hardware acceleration)—out of scope for this submission.
 
-## Honest limitation note
+## limitation note
 
 This document does **not** include measured benchmarks (FPS, latency, watts, or GPU memory). Any production sizing should be based on **profiling on target hardware** and the same config parameters that control how often detection and embedding run.

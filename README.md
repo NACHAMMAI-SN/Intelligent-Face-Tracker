@@ -1,60 +1,271 @@
 # Intelligent Face Tracker with Auto-Registration and Unique Visitor Counting
 
-End-to-end **tracker-first** pipeline: stable `track_id` from the tracker drives face crops, embeddings, recognition, optional auto-registration, and visit lifecycle. Supports **local video** and **RTSP** via `src/video_source.py`.
+An end-to-end **tracker-first** face analytics pipeline for hackathon evaluation. The system detects and tracks multiple faces, recognizes known identities, auto-registers stable unknown faces, prevents duplicate identity creation through identity reuse, records `ENTRY` / `EXIT` visit events, and persists outputs to **SQLite** and structured logs.
 
-## Problem statement addressed
+It supports both:
 
-- Multi-face **detection** and **tracking**
-- **Recognition** of known identities (cosine similarity + optional per-track confirmation)
-- **Auto-registration** of unknown but stable faces into SQLite
-- **Duplicate prevention / identity reuse**: fragmented tracks can bind to an **existing** `person_id` when gallery similarity passes an **effective** threshold (see `docs/assumptions.md`)
-- **Unique visitor** count = distinct rows in `persons` (not track count)
-- **ENTRY** / **EXIT** visit events with SQLite + mandatory JSONL `events.log`
+- **Local video input**
+- **RTSP stream input**
+
+The project also includes a lightweight **Flask demo dashboard** for viewing results and optionally triggering runs from the browser.
+
+---
+
+## Problem statement coverage
+
+This project addresses the required real-time intelligent video analytics workflow:
+
+- Multi-face **detection**
+- Multi-face **tracking**
+- Face **recognition**
+- **Auto-registration** of unknown stable faces
+- **Duplicate prevention / identity reuse**
+- **Unique visitor counting**
+- `ENTRY` / `EXIT` **visit lifecycle events**
+- **SQLite persistence**
+- Structured **application logs**
+- Structured **event logs**
+- Demo-ready **frontend dashboard**
+- Supporting **documentation**, **planning**, **architecture**, and **compute estimate**
+
+---
 
 ## Objective
 
-Demo-ready judging: clear modules, reproducible commands, observable **DB**, **`logs/`**, and **terminal stats**.
+The goal of this submission is to build a modular, demo-ready AI video processing application that is easy to run, easy to verify, and easy to explain during hackathon judging.
+
+The application is designed so judges can verify outputs through:
+
+- Terminal run statistics
+- SQLite database records
+- Application logs
+- Event logs
+- Saved entry and exit crop images
+- Dashboard views
+- Documentation in the `docs/` folder
+
+---
+
+## Core features
+
+### 1. Face detection
+
+The system detects faces from video frames using a YOLO-based face detector.
+
+**Main file:** `src/detector_yolo.py`
+
+### 2. Face tracking
+
+A tracker-first design is used so each active face is associated with a stable `track_id`. Recognition, visit handling, and auto-registration all happen around this tracked identity flow.
+
+**Main file:** `src/tracker.py`
+
+### 3. Face embedding
+
+For tracked face crops, embeddings are generated using InsightFace.
+
+**Main files:**
+
+- `src/embedder.py`
+- `src/face_aligner.py`
+
+### 4. Face recognition
+
+Known identities are matched using embedding similarity against an in-memory gallery loaded from SQLite.
+
+**Main file:** `src/recognizer.py`
+
+### 5. Auto-registration
+
+Unknown but stable faces can be automatically enrolled as new identities after passing stability and quality checks.
+
+**Main file:** `src/auto_register.py`
+
+### 6. Duplicate prevention / identity reuse
+
+Before creating a new identity, the pipeline checks whether the face is actually similar enough to an existing person in the database. If so, it reuses the existing `person_id` instead of creating a duplicate.
+
+This is one of the most important parts of the project because it keeps **Unique Visitors** aligned with real identities instead of raw fragmented tracks.
+
+### 7. Visit lifecycle
+
+The system creates and closes visits and emits:
+
+- `ENTRY`
+- `EXIT`
+
+**Main file:** `src/visit_manager.py`
+
+### 8. Persistence and logging
+
+The pipeline writes:
+
+- Persons
+- Embeddings
+- Visits
+- Events
+
+to SQLite, and also writes:
+
+- `logs/app.log`
+- `logs/events.log`
+
+**Main files:**
+
+- `src/db.py`
+- `src/repositories.py`
+- `src/event_logger.py`
+
+### 9. Demo dashboard
+
+A lightweight Flask dashboard is included for:
+
+- Viewing latest stats
+- Viewing proof summaries
+- Viewing DB-backed counts
+- Optionally running the pipeline from uploaded video or RTSP
+
+**Main file:** `demo/server.py`
+
+---
 
 ## Tracker-first pipeline
 
-Per processed frame:
+For each processed frame, the high-level flow is:
 
-1. **Track** — `FaceTracker` maintains `track_id`, hit counts, and lifecycle (active / lost / dead).
-2. **Per-track crop** — `crop_face_safe()` uses the tracker box for the identity path.
-3. **Embed** — `FaceEmbedder` (InsightFace) on a schedule (`recognition_interval`).
-4. **Recognize** — `FaceRecognizer` matches against an in-memory gallery (loaded from DB and updated at runtime).
-5. **Auto-register** — If not a confirmed match, `AutoRegistrar` applies stability gates, then **reuses** an existing person (DB gallery) or **creates** a new `person_id`.
-6. **Visits** — `VisitManager` opens/closes visits; **ENTRY** / **EXIT** written to DB and logs as configured.
-7. **Persistence** — `Repository` + `EventLogger` for `persons`, `face_embeddings`, `visits`, `events`.
+1. **Video input** is read from local file or RTSP.
+2. **Face detection** identifies face bounding boxes.
+3. **Tracking** maintains `track_id` across frames.
+4. **Per-track crop extraction** creates stable crops for identity work.
+5. **Embedding generation** converts face crops into vectors.
+6. **Recognition** attempts to match against known identities.
+7. **Auto-registration** handles stable unknown faces.
+8. **Identity reuse logic** prevents duplicate person creation.
+9. **Visit manager** emits `ENTRY` and `EXIT`.
+10. **Repository and logger** persist outputs to DB and logs.
+11. **Pipeline stats** are shown in terminal and written to logs.
+
+---
 
 ## Recognition, auto-registration, and duplicate prevention
 
-- **Known face** — Confirmed recognition binds `track_id` → `person_id`, increments **Recognized Total**, emits **RECOGNIZED**, refreshes visits.
-- **Unknown face** — After stability gates, the registrar compares the embedding to `get_all_known_embeddings()` in SQLite. If similarity ≥ **effective reuse threshold** (`min(auto_register_identity_reuse_threshold, recognition_threshold - auto_register_fragmentation_merge_slack)`), the track binds to that person: **Identity Reuse Bindings Total** increases; `app.log` shows `Existing identity reused for track`, `duplicate_prevented_existing_identity`, `no_new_person_created`; **no** new `persons` row and **no** `REGISTERED` event for that binding.
-- **Brand-new identity** — Otherwise `create_person`, **REGISTERED** (DB + `events.log` via logger), **Registered Total** increases.
+### Known face flow
 
-## Unique visitors and event logging
+If a face matches a known gallery identity with sufficient confidence:
 
-| Output | Role |
-| --- | --- |
-| **`persons`** | One row per enrolled identity; **Unique Visitors** = `COUNT(DISTINCT person_id)`. |
-| **`events` (SQLite)** | `ENTRY`, `EXIT`, `REGISTERED`, `RECOGNIZED` per schema in `src/db.py`. |
-| **`logs/events.log`** | Mandatory JSONL stream (`EventLogger`). |
-| **`logs/app.log`** | Operational logs, including identity reuse proof lines. |
-| **Crops** | `data/faces/entry/`, `data/faces/exit/` (optional; may be gitignored). |
+- The track binds to the existing `person_id`
+- A `RECOGNIZED` event may be emitted
+- The visit is refreshed
+- `Recognized Total` increases
+
+### Unknown face flow
+
+If a face is not confirmed as known:
+
+- Stability and quality checks are applied
+- The embedding is compared to stored known embeddings
+- If similarity crosses the effective reuse threshold, the pipeline:
+  - Reuses the existing `person_id`
+  - Increases `Identity Reuse Bindings Total`
+  - Avoids creating a duplicate person
+- Otherwise:
+  - A new `person_id` is created
+  - A `REGISTERED` event is emitted
+  - `Registered Total` increases
+
+This behavior helps ensure:
+
+- Fewer duplicate identities
+- More realistic visitor counting
+- Better alignment between DB records and run metrics
+
+---
+
+## Unique visitors
+
+**Unique Visitors** is based on the number of distinct people stored in the `persons` table, not the number of tracks.
+
+That means:
+
+- One real person should ideally map to one `person_id`
+- Fragmented tracks should not inflate the visitor count if identity reuse works properly
+
+---
+
+## Outputs generated by the system
+
+### SQLite database
+
+**File:** `data/face_tracker.db`
+
+**Main tables:**
+
+- `persons`
+- `face_embeddings`
+- `visits`
+- `events`
+
+### Application log
+
+**File:** `logs/app.log`
+
+**Contains:**
+
+- Pipeline start/stop
+- Operational decisions
+- Identity reuse lines
+- Resource usage snapshots
+- Final stats
+
+### Event log
+
+**File:** `logs/events.log`
+
+Contains machine-readable JSONL event records such as:
+
+- `REGISTERED`
+- `RECOGNIZED`
+- `ENTRY`
+- `EXIT`
+
+### Saved crop images
+
+**Folders:** `data/faces/entry/`, `data/faces/exit/`
+
+These store cropped face images associated with visit events.
+
+---
 
 ## Tech stack
 
-Python 3.11+, OpenCV, NumPy, Ultralytics YOLO, InsightFace, ONNX Runtime, SQLite (stdlib).
+- Python 3.11+
+- OpenCV
+- NumPy
+- Ultralytics YOLO
+- InsightFace
+- ONNX Runtime
+- SQLite
+- Flask
+- psutil
 
-## Architecture (module flow)
+---
 
-`VideoSource` → `YOLOFaceDetector` → `FaceTracker` → crop → `FaceEmbedder` → `FaceRecognizer` → (`AutoRegistrar` if unknown) → `VisitManager` → `EventLogger` / `Repository` → terminal stats from `Pipeline`.
+## Architecture
 
-### Diagram (Mermaid)
+Architecture and planning files are included under `docs/`.
 
-- Source: [architecture_diagram.mmd](docs/architecture_diagram.mmd)
-- Rendered for preview: [architecture_diagram.md](docs/architecture_diagram.md)
+| Document | Path |
+| --- | --- |
+| AI planning | `docs/ai_planning.md` |
+| Architecture | `docs/architecture.md` |
+| Mermaid source | `docs/architecture_diagram.mmd` |
+| Rendered preview | `docs/architecture_diagram.md` |
+| Assumptions | `docs/assumptions.md` |
+| Compute estimate | `docs/compute_estimate.md` |
+| Sample output | `docs/sample_output.md` |
+| Submission notes | `docs/submission_notes.md` |
+
+---
 
 ## Project structure
 
@@ -65,33 +276,55 @@ Katomaran/
 ├── requirements.txt
 ├── README.md
 ├── docs/
+│   ├── ai_planning.md
+│   ├── architecture.md
+│   ├── architecture_diagram.md
 │   ├── architecture_diagram.mmd
-│   └── architecture_diagram.md
+│   ├── assumptions.md
+│   ├── compute_estimate.md
+│   ├── sample_output.md
+│   ├── sample_outputs/
+│   │   ├── images/
+│   │   └── logs/
+│   └── submission_notes.md
 ├── demo/
+│   ├── server.py
+│   ├── static/
+│   └── templates/
 ├── scripts/
-│   └── init_db.py
+│   ├── init_db.py
+│   ├── run_pipeline.py
+│   └── run_video_demo.py
 ├── src/
-├── logs/
 ├── data/
+├── logs/
 └── models/
 ```
 
-(Other scripts and modules omitted for brevity.)
+*(Other scripts and modules omitted for brevity.)*
+
+---
 
 ## Requirement → file mapping
 
-| Area | Module |
+| Area | Main module |
 | --- | --- |
 | Detection | `src/detector_yolo.py` |
 | Tracking | `src/tracker.py` |
 | Embeddings | `src/embedder.py`, `src/face_aligner.py` |
 | Recognition | `src/recognizer.py` |
-| Auto-register + reuse | `src/auto_register.py` |
-| Visits | `src/visit_manager.py` |
-| Events + DB | `src/event_logger.py`, `src/repositories.py`, `src/db.py` |
-| Orchestration | `src/pipeline.py`, `main.py` |
+| Auto-registration | `src/auto_register.py` |
+| Visit lifecycle | `src/visit_manager.py` |
+| Event logging | `src/event_logger.py` |
+| DB persistence | `src/repositories.py`, `src/db.py` |
+| Pipeline orchestration | `src/pipeline.py`, `main.py` |
+| Demo dashboard | `demo/server.py` |
+
+---
 
 ## Installation
+
+From the project root:
 
 ```powershell
 cd E:\Katomaran
@@ -100,117 +333,296 @@ python -m venv .venv
 pip install -r requirements.txt
 ```
 
-Place detector weights per `config.json` (`detector_model_path`). InsightFace downloads its model on first use as configured.
+**Notes**
 
-## How to demo
+- The detector model path is configured in `config.json`.
+- InsightFace may download its model assets on first use.
+- The default sample input is `data/test.mp4`.
 
-From the project root:
+---
+
+## Configuration
+
+**Main config file:** `config.json`
+
+Default important fields include:
+
+- `input_mode`
+- `video_path`
+- `rtsp_url`
+- Detection thresholds
+- Recognition thresholds
+- Tracker settings
+- Auto-registration settings
+- Database path
+- Logs directory
+- Model path
+
+**Example default behavior**
+
+- `input_mode` = `"video"`
+- `video_path` = `"data/test.mp4"`
+
+A fresh run uses the included sample video by default.
+
+---
+
+## How to run
+
+### Option 1: CLI pipeline run
 
 ```powershell
-cd E:\Katomaran
+
+.\.venv\Scripts\Activate.ps1
 python .\scripts\init_db.py
 python .\main.py
 ```
 
-With a venv:
+This will:
+
+- Initialize the SQLite DB
+- Process the configured input
+- Generate logs
+- Generate DB entries
+- Save entry/exit crop images
+- Print final terminal stats
+
+### Option 2: Dashboard only
 
 ```powershell
-.\.venv\Scripts\python.exe .\scripts\init_db.py
-.\.venv\Scripts\python.exe .\main.py
+cd E:\Katomaran
+.\.venv\Scripts\Activate.ps1
+python .\scripts\init_db.py
+python .\demo\server.py
 ```
 
-**For judges:** final terminal stats, `logs\events.log`, `logs\app.log`, and `data\face_tracker.db`.
+Then open: **http://127.0.0.1:5050**
 
-## Demo dashboard (read-only views + optional browser runs)
+This is enough for dashboard use, including optional browser-triggered runs.
 
-Lightweight **Flask** UI and JSON APIs under `demo/`. **Read-only** sections read `config.json` for `db_path` / `logs_dir`, parse the last **`Pipeline stopped`** line from `logs/app.log`, and query SQLite.
-
-**Optional:** start the real pipeline from the browser instead of (or after) `main.py`. Each browser run saves uploads under `demo/uploads/` and uses a **temporary JSON config** merged from root `config.json` plus that run's `input_mode` / `video_path` or `rtsp_url`. Root **`config.json` is not overwritten**. Only **one** run at a time; a second request returns HTTP **409**.
-
-With dependencies installed (`pip install -r requirements.txt`), from the project root:
+### Option 3: Pipeline + dashboard
 
 ```powershell
-.\.venv\Scripts\python.exe .\scripts\init_db.py
-.\.venv\Scripts\python.exe .\main.py
-.\.venv\Scripts\python.exe .\demo\server.py
+
+.\.venv\Scripts\Activate.ps1
+python .\scripts\init_db.py
+python .\main.py
+python .\demo\server.py
 ```
 
-Use **`main.py`** for a CLI-only pipeline run. For the dashboard (and optional browser-triggered runs), **`init_db.py`** then **`demo\server.py`** is enough; you do not need **`main.py`** first. Open **http://127.0.0.1:5050** in a browser.
+Use this flow if you want one CLI proof run first, then dashboard viewing afterward.
 
-### APIs
+---
+
+## Dashboard capabilities
+
+The Flask dashboard provides:
+
+- Config summary
+- Run status
+- Proof summary
+- Stats summary
+- Cumulative DB-backed event counts
+
+It also supports:
+
+- Local video upload through browser
+- RTSP input through browser
+
+Browser-triggered runs use a **temporary** merged config; root **`config.json` is not overwritten**. Only **one** pipeline run at a time from the dashboard; overlapping runs return **409**. `POST /api/run/*` calls are **synchronous** (blocking until the run finishes).
+
+### Supported endpoints
 
 | Method | Path | Purpose |
 | --- | --- | --- |
-| GET | `/api/config` | Summary of validated `config.json` (RTSP URL redacted in `rtsp_url_redacted`). |
-| GET | `/api/stats` | Last pipeline stats from `app.log` + DB snapshot. |
-| GET | `/api/proof` | Proof facts + cumulative DB event counts (including ENTRY/EXIT). |
-| GET | `/api/events-summary` | SQLite `events` counts + persons. |
-| GET | `/api/run/status` | `idle` / `running` / `done` / `failed` and last run metadata. |
-| POST | `/api/run/video` | Multipart field `file`: save upload, run `Pipeline`, return JSON `stats` + DB proof counts. |
-| POST | `/api/run/rtsp` | JSON body with `rtsp_url` (`rtsp://…`): run pipeline on stream; returns JSON `stats` + proof. |
+| GET | `/api/config` | Summary of validated `config.json` |
+| GET | `/api/stats` | Last pipeline stats from `app.log` plus DB snapshot |
+| GET | `/api/proof` | Proof facts and cumulative DB event counts |
+| GET | `/api/events-summary` | SQLite `events` counts and persons count |
+| GET | `/api/run/status` | Current run status |
+| POST | `/api/run/video` | Upload and process a video file |
+| POST | `/api/run/rtsp` | Process an RTSP stream |
 
-### Caveats
+**Important:** Browser-triggered runs are synchronous, so very long videos or streams may take a while and can time out in browser or proxy environments.
 
-`POST /api/run/*` is **synchronous**: the request blocks until the pipeline finishes. Long videos or RTSP streams may run for a long time; browsers or proxies can time out.
+---
 
-## Expected output (verified — clean run, demo clip)
+## Sample verified output
 
-Example terminal stats from a **latest clean run** (identity reuse active; duplicate inflation reduced):
+A clean verified run produced the following example final stats:
 
 | Stat | Example value |
 | --- | --- |
-| **Registered Total** | **12** (new `person_id` enrollments this run only) |
-| **Identity Reuse Bindings Total** | **17** (fragmented tracks bound to existing persons) |
-| **Unique Visitors** | **12** (matches `persons` / distinct identities) |
-| **Entries Total** | **23** |
-| **Exits Total** | **23** |
+| Registered Total | 12 |
+| Identity Reuse Bindings Total | 17 |
+| Unique Visitors | 12 |
+| Entries Total | 34 |
+| Exits Total | 34 |
 
-### Logs
+These values come from a clean proof run and are also documented under `docs/sample_output.md`.
 
-| Log | Notes |
-| --- | --- |
-| `logs/app.log` | Many lines **Existing identity reused for track** with `duplicate_prevented_existing_identity`, `no_new_person_created=true`, `effective_reuse_threshold` (e.g. **0.35**). |
-| `logs/events.log` | **`REGISTERED`** only for true new identities (not for reuse bindings). |
+**Notes**
 
-Exact numbers may vary with `config.json`, video, and DB state; the **relationships** above should hold when reuse is working.
+Exact values can vary depending on:
 
-## Demo proof
+- Video input
+- Configuration
+- DB state
+- Recognition thresholds
 
-- **Reused tracks** bind to an existing `person_id`; they do **not** add a row to **`persons`**.
-- **`REGISTERED`** (DB + `events.log`) is emitted **only** for **brand-new** identities (`auto_registered_new_identity`), not for duplicate-prevented reuse.
-- **Unique Visitors** uses `Repository.get_unique_visitor_count()` → **`COUNT(DISTINCT person_id)` on `persons`**, so it stays aligned with the persons table when reuse binds tracks without new enrollments.
+What should remain consistent is the relationship between `persons`, `REGISTERED`, `ENTRY`, `EXIT`, and unique visitor logic.
 
-## SQLite and log outputs
+---
 
-| Path | Content |
-| --- | --- |
-| `data/face_tracker.db` | `persons`, `face_embeddings`, `visits`, `events` |
-| `logs/events.log` | JSONL: `ENTRY`, `EXIT`, `REGISTERED`, `RECOGNIZED` |
-| `logs/app.log` | Pipeline and track decisions; identity reuse lines |
+## Sample output proof
+
+Proof artifacts are included in:
+
+- `docs/sample_output.md`
+- `docs/sample_outputs/images/`
+- `docs/sample_outputs/logs/`
+
+These include:
+
+- Terminal screenshots
+- DB proof screenshot
+- Entry crop screenshot
+- Exit crop screenshot
+- Dashboard screenshots
+- Sample app log
+- Sample events log
+
+---
+
+## Compute estimate
+
+The project includes a hackathon-oriented compute estimate in `docs/compute_estimate.md`.
+
+This estimate explains:
+
+- Where CPU/GPU load mainly occurs
+- Why detection and embedding are the main heavy stages
+- Why SQLite and logging are lightweight relative to inference
+- How config knobs such as frame skip and recognition interval affect practical load
+
+This is an estimate document, not a formal benchmark report.
+
+---
+
+## Resource usage logging
+
+Minimal runtime resource usage proof was added for hackathon documentation.
+
+The pipeline records:
+
+- CPU usage percent
+- RAM usage percent
+- RAM used in MB
+
+These are logged at pipeline start and pipeline end. This data appears in `logs/app.log`.
+
+---
 
 ## Terminal metric semantics
 
-| Stat | Meaning |
+| Metric | Meaning |
 | --- | --- |
-| **Unique Visitors** | `COUNT(DISTINCT person_id)` from `persons`. |
-| **Registered Total** | New enrollments this run (`auto_registered_new_identity` only). |
-| **Identity Reuse Bindings Total** | Tracks bound via duplicate prevention; no new person; no `REGISTERED` for that binding. |
-| **Recognized Total** | Confirmed gallery matches this run. |
-| **Entries / Exits** | Visit opens and closes from `VisitManager`. |
+| Unique Visitors | Distinct `person_id` count from `persons` |
+| Registered Total | New identities enrolled in this run |
+| Identity Reuse Bindings Total | Duplicate-prevented bindings to existing identities |
+| Recognized Total | Confirmed recognition matches |
+| Entries Total | Visit opens emitted by `VisitManager` |
+| Exits Total | Visit closes emitted by `VisitManager` |
 
-## entry_exit_absence_timeout_seconds
+---
 
-- **Larger** value → longer grace before EXIT when the face is missing → fewer ENTRY/EXIT cycles on the same clip.
-- **Smaller** value → EXIT sooner → more cycles than with a longer timeout.
-- Default in config is **5** s (looser than **3** s; stricter than **8** s in relative terms).
+## Runtime-generated files
 
-## Limitations and future work
+These are generated when the project runs and are not required to already exist in a fresh clone:
 
-- Detector and tracker quality dominate ID switches; dense crowds and motion still fragment tracks.
-- Reuse uses a merge floor vs. recognition threshold; tune `auto_register_fragmentation_merge_slack` if needed.
-- Single process; no multi-camera fusion or production HA.
-- Tests, CI, and exportable judge reports are out of scope for this hackathon build. The Flask dashboard under `demo/` provides read-only views and optional in-browser pipeline runs as described above.
+- `data/face_tracker.db`
+- `logs/app.log`
+- `logs/events.log`
+- `data/faces/entry/...`
+- `data/faces/exit/...`
 
-## Hackathon footer
+So anyone can clone the repository and generate these outputs by running:
 
-This project is part of a hackathon run by <https://katomaran.com>.
+```powershell
+python .\scripts\init_db.py
+python .\main.py
+```
+
+---
+
+## Limitations
+
+This hackathon build is intentionally focused on correct end-to-end functionality and proof generation.
+
+Current limitations include:
+
+- No full automated test suite
+- No production deployment setup
+- No advanced production frontend
+- No production-grade multi-camera re-identification
+- Metrics can vary run to run depending on input and thresholds
+- Browser-triggered runs are synchronous
+- Dense crowds and heavy motion can still fragment tracks
+
+---
+
+## Future work
+
+Potential future improvements include:
+
+- Production deployment setup
+- Async/background processing for long streams
+- Multi-camera identity fusion
+- More polished frontend experience
+- Automated testing and CI
+- Exportable reporting for judges and operators
+
+---
+
+## Quick flow
+
+For the fastest verification flow:
+
+```powershell
+cd E:\Katomaran
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+python .\scripts\init_db.py
+python .\main.py
+python .\demo\server.py
+```
+
+Then verify:
+
+- Terminal stats
+- `data/face_tracker.db`
+- `logs/app.log`
+- `logs/events.log`
+- Dashboard at **http://127.0.0.1:5050**
+- Proof doc at `docs/sample_output.md`
+
+---
+
+## Hackathon note
+
+This repository was prepared as a hackathon submission focused on:
+
+- AI-assisted development workflow
+- Modular Python implementation
+- Real-time video processing
+- Structured logging
+- Database persistence
+- Clear documentation
+- Reproducible proof outputs
+
+---
+
+## Footer
+
+This project is part of a hackathon run by [https://katomaran.com](https://katomaran.com).

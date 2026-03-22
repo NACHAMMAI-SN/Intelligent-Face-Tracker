@@ -1,6 +1,6 @@
 # Submission notes
 
-## 60-second demo script
+
 
 > This is an **Intelligent Face Tracker** with **auto-registration** and **unique visitor counting**.
 >
@@ -27,7 +27,7 @@ With a venv:
 .\.venv\Scripts\python.exe .\main.py
 ```
 
-## What to show judges
+
 
 | Artifact | Why |
 | --- | --- |
@@ -36,7 +36,7 @@ With a venv:
 | **`logs\app.log`** | Proof of reuse: `Existing identity reused for track`, `duplicate_prevented_existing_identity`, `no_new_person_created`. |
 | **`data\face_tracker.db`** | `persons`, `visits`, `events`. |
 
-## Expected output (verified — clean run)
+## Expected output
 
 Example from a **clean run** on the demo clip (reuse on; unique-visitor inflation reduced):
 
@@ -52,7 +52,7 @@ Example from a **clean run** on the demo clip (reuse on; unique-visitor inflatio
 
 **`logs/events.log`:** `REGISTERED` only for true new identities (aligns with **Registered Total**, not reuse bindings).
 
-Numbers can differ with DB seed and config; judges should verify the **invariants** below.
+Numbers can differ with DB seed and config; should verify the **invariants** below.
 
 ## Demo proof
 

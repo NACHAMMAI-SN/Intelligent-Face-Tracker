@@ -1,4 +1,4 @@
-# Practical assumptions (aligned with current code)
+# Practical assumptions
 
 ## Tracker-first processing
 

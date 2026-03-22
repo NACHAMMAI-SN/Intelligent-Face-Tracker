@@ -12,7 +12,7 @@ flowchart TD
     F --> G[Face Recognizer]
 
     G -->|Known match| H[Known Identity Binding]
-    G -->|Unknown / not confirmed| I[Auto Registeration]
+    G -->|Unknown / not confirmed| I[Auto Registration]
 
     I -->|Reuse existing identity| J[Duplicate Prevention / Identity Reuse]
     I -->|Brand new identity| K[Register New Person]
